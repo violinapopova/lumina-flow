@@ -1,7 +1,8 @@
 # LuminaFlow
 
 A calm, glassmorphism-styled wellness app built with **Expo SDK 55**, **React Native**, and **React Navigation**. Mood check-ins, journaling, guided breathing, streaks, and daily affirmations—with **Zustand** + **AsyncStorage** for local persistence and **React Native Reanimated** for fluid motion.
-![Uploading Simulator Screenshot - iPhone 16 Plus - 2026-04-15 at 23.28.32.png…]()
+<img width="1290" height="2796" alt="Simulator Screenshot - iPhone 16 Plus - 2026-04-15 at 23 28 32" src="https://github.com/user-attachments/assets/59a6ed96-39b1-461a-a049-db8002b10e21" />
+
 
 
 ## Tech stack
