@@ -1,0 +1,59 @@
+# Dependencies (never commit — tens of thousands of files)
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# Native builds (after `expo prebuild` or local builds)
+ios/Pods/
+ios/build/
+android/app/build/
+android/build/
+android/.gradle/
+*.ipa
+*.apk
+*.aab
+
+# Secrets & keystores
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+
+# Metro
+.metro-health-check*
+
+# Debug / logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+
+# Local env
+.env
+.env.*
+!.env.example
+
+# TypeScript
+*.tsbuildinfo
+
+# Testing / coverage
+coverage/
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Temporary
+*.log
+*.tmp
+*.temp
