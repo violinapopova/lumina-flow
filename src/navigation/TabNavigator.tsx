@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Animated, {
   useSharedValue,
@@ -14,16 +14,17 @@ import { JournalScreen } from '@screens/journal/JournalScreen';
 import { BreatheScreen } from '@screens/breathe/BreatheScreen';
 import { ProfileScreen } from '@screens/profile/ProfileScreen';
 import { Colors, Typography, Radius } from '@theme';
+import { useAppStore } from '@store/useAppStore';
 import type { TabParamList } from './types';
+import { TAB_BAR_STYLE } from './tabBarStyle';
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
-const TAB_ICONS: Record<keyof TabParamList, string> = {
+const TAB_ICONS: Record<Exclude<keyof TabParamList, 'Profile'>, string> = {
   Home:    '🏠',
   Mood:    '💭',
   Journal: '📖',
   Breathe: '🌬️',
-  Profile: '🌸',
 };
 
 const TAB_LABELS: Record<keyof TabParamList, string> = {
@@ -38,6 +39,7 @@ const TabIcon: React.FC<{
   name: keyof TabParamList;
   focused: boolean;
 }> = ({ name, focused }) => {
+  const profileEmoji = useAppStore((s) => s.profile.avatarEmoji);
   const scale = useSharedValue(focused ? 1 : 0.9);
 
   React.useEffect(() => {
@@ -45,12 +47,13 @@ const TabIcon: React.FC<{
   }, [focused]);
 
   const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const emoji = name === 'Profile' ? profileEmoji : TAB_ICONS[name];
 
   return (
     <View style={tabStyles.iconWrapper}>
       {focused && <View style={tabStyles.activeIndicator} />}
       <Animated.Text style={[tabStyles.emoji, iconStyle]}>
-        {TAB_ICONS[name]}
+        {emoji}
       </Animated.Text>
       <Text
         style={[
@@ -69,7 +72,7 @@ const tabStyles = StyleSheet.create({
   emoji: { fontSize: 22 },
   label: { ...Typography.caption, fontSize: 10 },
   labelActive: { color: Colors.accent.secondary, fontWeight: '600' },
-  labelInactive: { color: Colors.text.tertiary },
+  labelInactive: { color: Colors.text.secondary, fontWeight: '500' },
   activeIndicator: {
     position: 'absolute',
     top: -2,
@@ -85,13 +88,7 @@ export const TabNavigator: React.FC = () => (
     screenOptions={{
       headerShown: false,
       tabBarShowLabel: false,
-      tabBarStyle: {
-        position: 'absolute',
-        borderTopWidth: 0,
-        backgroundColor: 'transparent',
-        elevation: 0,
-        height: Platform.OS === 'ios' ? 84 : 68,
-      },
+      tabBarStyle: TAB_BAR_STYLE,
       tabBarBackground: () => (
         <View style={StyleSheet.absoluteFill}>
           <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />

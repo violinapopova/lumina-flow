@@ -52,8 +52,7 @@
           "image": "./src/assets/splash.png",
           "resizeMode": "contain"
         }
-      ],
-      "expo-sqlite"
+      ]
     ],
     "scheme": "luminaflow"
   }

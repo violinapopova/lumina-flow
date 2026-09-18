@@ -1,3 +1,5 @@
+import './global.css';
+import '@/nativewindSetup';
 import 'react-native-gesture-handler';
 import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
@@ -46,29 +48,26 @@ const SplashOverlay: React.FC<{ onDone: () => void }> = ({ onDone }) => {
 // ─── Notification bootstrapper ────────────────────────────────────────────────
 
 const NotificationBootstrap: React.FC = () => {
-  const { profile, currentStreak, checkAndUpdateStreak } = useAppStore();
-
   useEffect(() => {
+    const { profile, currentStreak, checkAndUpdateStreak } = useAppStore.getState();
+
     // Refresh the daily reminder on every app launch so the message pool rotates.
-    // Only runs if the user has reminders enabled and permission was previously granted.
     if (profile.reminderEnabled && profile.notificationPermission === 'granted') {
       refreshDailyReminder(profile.reminderTime, currentStreak);
     }
 
-    // Listen for taps on notifications (deep-link handling can be added here)
     const cleanup = addNotificationListeners(
       undefined,
       (response) => {
         const data = response.notification.request.content.data;
         if (data?.type === 'daily-reminder') {
-          // User tapped the daily reminder — mark them active for streak
           checkAndUpdateStreak();
         }
-      }
+      },
     );
 
     return cleanup;
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps — intentionally runs once on mount
+  }, []);
 
   return null;
 };

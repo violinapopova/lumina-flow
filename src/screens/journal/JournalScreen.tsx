@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
   View,
   ScrollView,
+  FlatList,
+  type ListRenderItemInfo,
   TextInput,
   Keyboard,
   KeyboardAvoidingView,
@@ -21,66 +23,76 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { format, parseISO, isToday, isYesterday } from 'date-fns';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useHideTabBarWhen } from '@hooks/useHideTabBarWhen';
+import { format, parseISO } from 'date-fns';
+import { formatRecentDayLabel } from '@utils/date';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { GlassCardInset } from '@components/GlassCardInset';
 import { LiquidGlassCard } from '@components/LiquidGlassCard';
 import { LiquidButton } from '@components/LiquidButton';
 import { AnimatedBackground } from '@components/AnimatedBackground';
-import { Colors, Typography, Spacing, Radius } from '@theme';
-import { useAppStore, genId, type JournalEntry } from '@store/useAppStore';
+import { Colors, Spacing } from '@theme';
+import { journalTw } from './journal.tw';
+import { journalGradientLayers } from './journal.static';
+import { useAppStore } from '@store/useAppStore';
+import type { JournalEntry } from '@/domain/models';
+import { genId } from '@utils/id';
 import type { RootStackParamList } from '@navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'JournalDetail'> & {
   navigation: any;
 };
 
-const JournalEntryCard: React.FC<{
+const JournalEntryCard = React.memo(function JournalEntryCard({
+  entry,
+  index,
+  onPress,
+}: {
   entry: JournalEntry;
   index: number;
   onPress: () => void;
-}> = ({ entry, index, onPress }) => {
+}) {
   const date = parseISO(entry.createdAt);
-  const dateLabel = isToday(date) ? 'Today' : isYesterday(date) ? 'Yesterday' : format(date, 'MMM d, yyyy');
+  const dateLabel = formatRecentDayLabel(date, 'MMM d, yyyy');
 
   return (
     <Animated.View entering={FadeInDown.delay(index * 80).springify()}>
       <LiquidGlassCard
-        style={styles.entryCard}
+        className={journalTw.entryCard}
         intensity="light"
         onPress={onPress}
         ripple
       >
-        <LinearGradient
-          colors={['rgba(124,95,244,0.10)', 'transparent']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[StyleSheet.absoluteFill, { borderRadius: Radius.md }]}
-        />
-        <View style={styles.entryHeader}>
-          <Text style={styles.entryTitle} numberOfLines={1}>
-            {entry.title || 'Untitled entry'}
+        <GlassCardInset
+          gradientColors={['rgba(124,95,244,0.10)', 'transparent']}
+        >
+          <View className={journalTw.entryHeader}>
+            <Text className={journalTw.entryTitle} numberOfLines={1}>
+              {entry.title || 'Untitled entry'}
+            </Text>
+            <Text className={journalTw.entryDate}>{dateLabel}</Text>
+          </View>
+          <Text className={journalTw.entryPreview} numberOfLines={2}>
+            {entry.body || 'No content yet...'}
           </Text>
-          <Text style={styles.entryDate}>{dateLabel}</Text>
-        </View>
-        <Text style={styles.entryPreview} numberOfLines={2}>
-          {entry.body || 'No content yet...'}
-        </Text>
-        <View style={styles.entryFooter}>
-          <Text style={styles.entryTime}>{format(date, 'h:mm a')}</Text>
-          <Text style={styles.entryWords}>
-            {entry.body.split(' ').filter(Boolean).length} words
-          </Text>
-        </View>
+          <View className={journalTw.entryFooter}>
+            <Text className={journalTw.entryTime}>{format(date, 'h:mm a')}</Text>
+            <Text className={journalTw.entryWords}>
+              {entry.body.split(' ').filter(Boolean).length} words
+            </Text>
+          </View>
+        </GlassCardInset>
       </LiquidGlassCard>
     </Animated.View>
   );
-};
+});
 
 const NewEntryModal: React.FC<{
   onSave: (title: string, body: string) => void;
   onDismiss: () => void;
 }> = ({ onSave, onDismiss }) => {
+  const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const translateY = useSharedValue(200);
@@ -102,114 +114,112 @@ const NewEntryModal: React.FC<{
     setTimeout(onDismiss, 280);
   };
 
+  const trimmedBody = body.trim();
+  const trimmedTitle = title.trim();
+  const canSave = trimmedBody.length > 0 || trimmedTitle.length > 0;
+
   const save = () => {
-    if (!body.trim()) return;
-    onSave(title.trim() || format(new Date(), 'MMMM d, yyyy'), body.trim());
+    if (!canSave) return;
+    Keyboard.dismiss();
+    const entryTitle = trimmedTitle || format(new Date(), 'MMMM d, yyyy');
+    const entryBody = trimmedBody || trimmedTitle;
+    onSave(entryTitle, entryBody);
     dismiss();
   };
 
   return (
-    <View style={modalStyles.overlay}>
-      <Pressable style={modalStyles.backdrop} onPress={dismiss} />
+    <View className={journalTw.modalOverlay}>
+      <Pressable className={journalTw.modalBackdrop} onPress={dismiss} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={modalStyles.keyboardView}
+        className={journalTw.modalKeyboard}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
       >
-        <Animated.View style={[modalStyles.modal, modalStyle]}>
-          <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />
+        <Animated.View className={journalTw.modalSheet} style={modalStyle}>
+          <BlurView
+            intensity={60}
+            tint="dark"
+            className="absolute inset-0"
+            pointerEvents="none"
+          />
           <LinearGradient
             colors={['rgba(124,95,244,0.20)', 'rgba(90,60,220,0.08)']}
-            style={[StyleSheet.absoluteFill, { borderRadius: Radius.xl }]}
+            style={[StyleSheet.absoluteFill, journalGradientLayers.modalGradient]}
+            pointerEvents="none"
           />
-          <View style={modalStyles.borderOverlay} />
+          <View className={journalTw.modalBorderOverlay} pointerEvents="none" />
 
-          <View style={modalStyles.handle} />
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            contentContainerClassName={journalTw.modalScroll}
+            contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.lg }}
+          >
+            <View className={journalTw.modalHandle} />
 
-          <Text style={modalStyles.modalTitle}>New Entry ✍️</Text>
+            <Text className={journalTw.modalTitle}>New Entry ✍️</Text>
 
-          <TextInput
-            style={modalStyles.titleInput}
-            placeholder="Title (optional)"
-            placeholderTextColor={Colors.text.tertiary}
-            value={title}
-            onChangeText={setTitle}
-            maxLength={80}
-          />
+            <TextInput
+              className={journalTw.titleInput}
+              placeholder="Title (optional)"
+              placeholderTextColor={Colors.text.tertiary}
+              value={title}
+              onChangeText={setTitle}
+              maxLength={80}
+              returnKeyType="next"
+            />
 
-          <TextInput
-            style={modalStyles.bodyInput}
-            placeholder="What's on your mind today? Express freely..."
-            placeholderTextColor={Colors.text.tertiary}
-            value={body}
-            onChangeText={setBody}
-            multiline
-            autoFocus
-            textAlignVertical="top"
-          />
+            <TextInput
+              className={journalTw.bodyInput}
+              placeholder="What's on your mind today? Express freely..."
+              placeholderTextColor={Colors.text.tertiary}
+              value={body}
+              onChangeText={setBody}
+              multiline
+              autoFocus
+              textAlignVertical="top"
+            />
 
-          <View style={modalStyles.actions}>
-            <LiquidButton label="Cancel" variant="ghost" size="md" onPress={dismiss} style={{ flex: 1 }} />
-            <LiquidButton label="Save Entry" variant="primary" size="md" onPress={save} style={{ flex: 1 }} />
-          </View>
+            {!canSave && (
+              <Text className={journalTw.saveHint}>Add a title or a few words to save.</Text>
+            )}
+
+            <View className={journalTw.modalActions}>
+              <View className={journalTw.modalActionBtn}>
+                <LiquidButton
+                  label="Cancel"
+                  variant="ghost"
+                  size="md"
+                  onPress={dismiss}
+                  style={{ width: '100%' }}
+                />
+              </View>
+              <View className={journalTw.modalActionBtn}>
+                <LiquidButton
+                  label="Save Entry"
+                  variant="primary"
+                  size="md"
+                  onPress={save}
+                  disabled={!canSave}
+                  style={{ width: '100%' }}
+                />
+              </View>
+            </View>
+          </ScrollView>
         </Animated.View>
       </KeyboardAvoidingView>
     </View>
   );
 };
 
-const modalStyles = StyleSheet.create({
-  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 100, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
-  keyboardView: { justifyContent: 'flex-end' },
-  modal: {
-    borderTopLeftRadius: Radius.xl,
-    borderTopRightRadius: Radius.xl,
-    padding: Spacing.xl,
-    paddingBottom: Spacing['3xl'],
-    gap: Spacing.base,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: Colors.glass.border,
-    borderBottomWidth: 0,
-  },
-  borderOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    borderTopLeftRadius: Radius.xl,
-    borderTopRightRadius: Radius.xl,
-    borderWidth: 1,
-    borderColor: Colors.glass.borderLight,
-    borderBottomWidth: 0,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.glass.border,
-    alignSelf: 'center',
-    marginBottom: Spacing.sm,
-  },
-  modalTitle: { ...Typography.h2, color: Colors.text.primary },
-  titleInput: {
-    ...Typography.h3,
-    color: Colors.text.primary,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.glass.border,
-    paddingVertical: Spacing.sm,
-  },
-  bodyInput: {
-    ...Typography.bodyLg,
-    color: Colors.text.primary,
-    minHeight: 140,
-    maxHeight: 240,
-    paddingVertical: Spacing.sm,
-  },
-  actions: { flexDirection: 'row', gap: Spacing.base },
-});
-
 export const JournalScreen: React.FC = () => {
-  const { journalEntries, addJournalEntry } = useAppStore();
+  const journalEntries = useAppStore((s) => s.journalEntries);
+  const addJournalEntry = useAppStore((s) => s.addJournalEntry);
   const [showNewEntry, setShowNewEntry] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
+
+  useHideTabBarWhen(showNewEntry || selectedEntry != null);
 
   const handleSave = (title: string, body: string) => {
     const now = new Date().toISOString();
@@ -222,80 +232,93 @@ export const JournalScreen: React.FC = () => {
     });
   };
 
-  return (
-    <View style={styles.container}>
-      <AnimatedBackground variant="journal" />
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header */}
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.pageTitle}>Journal</Text>
-              <Text style={styles.pageSubtitle}>
-                {journalEntries.length} {journalEntries.length === 1 ? 'entry' : 'entries'}
+  const openNewEntry = useCallback(() => setShowNewEntry(true), []);
+
+  const renderEntry = useCallback(
+    ({ item, index }: ListRenderItemInfo<JournalEntry>) => (
+      <JournalEntryCard
+        entry={item}
+        index={index}
+        onPress={() => setSelectedEntry(item)}
+      />
+    ),
+    [],
+  );
+
+  const listHeader = useMemo(
+    () => (
+      <View className={journalTw.listHeader}>
+        <View className={journalTw.header}>
+          <View>
+            <Text className={journalTw.pageTitle}>Journal</Text>
+            <Text className={journalTw.pageSubtitle}>
+              {journalEntries.length}{' '}
+              {journalEntries.length === 1 ? 'entry' : 'entries'}
+            </Text>
+          </View>
+          <Pressable className={journalTw.newBtn} onPress={openNewEntry}>
+            <BlurView intensity={30} tint="dark" className="absolute inset-0" />
+            <LinearGradient
+              colors={[Colors.accent.primary, '#5B3FD9']}
+              style={[StyleSheet.absoluteFill, journalGradientLayers.newBtnGradient]}
+            />
+            <Text className={journalTw.newBtnText}>+ New</Text>
+          </Pressable>
+        </View>
+
+        <LiquidGlassCard className={journalTw.promptCard} intensity="light">
+          <GlassCardInset gradientColors={['rgba(249,168,212,0.15)', 'transparent']}>
+            <View className={journalTw.promptRow}>
+              <Text className={journalTw.promptEmoji}>💭</Text>
+              <Text className={journalTw.promptText}>
+                "{format(new Date(), 'EEEE')} writing prompt: What made you smile today?"
               </Text>
             </View>
-            <Pressable
-              style={styles.newBtn}
-              onPress={() => setShowNewEntry(true)}
-            >
-              <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-              <LinearGradient
-                colors={[Colors.accent.primary, '#5B3FD9']}
-                style={[StyleSheet.absoluteFill, { borderRadius: 22 }]}
-              />
-              <Text style={styles.newBtnText}>+ New</Text>
-            </Pressable>
-          </View>
+          </GlassCardInset>
+        </LiquidGlassCard>
 
-          {/* Quote prompt */}
-          <LiquidGlassCard style={styles.promptCard} intensity="light">
-            <LinearGradient
-              colors={['rgba(249,168,212,0.15)', 'transparent']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[StyleSheet.absoluteFill, { borderRadius: Radius.md }]}
-            />
-            <Text style={styles.promptEmoji}>💭</Text>
-            <Text style={styles.promptText}>
-              "{format(new Date(), 'EEEE')} writing prompt: What made you smile today?"
-            </Text>
-          </LiquidGlassCard>
-
-          {/* Entry list */}
-          {journalEntries.length === 0 ? (
-            <LiquidGlassCard style={styles.emptyCard} intensity="light">
-              <Text style={styles.emptyEmoji}>📖</Text>
-              <Text style={styles.emptyTitle}>Your journal awaits</Text>
-              <Text style={styles.emptySubtitle}>
+        {journalEntries.length === 0 && (
+          <LiquidGlassCard className={journalTw.emptyCard} intensity="light">
+            <GlassCardInset gradientColors={['rgba(124,95,244,0.12)', 'transparent']}>
+              <View className={journalTw.emptyCardContent}>
+              <Text className={journalTw.emptyEmoji}>📖</Text>
+              <Text className={journalTw.emptyTitle}>Your journal awaits</Text>
+              <Text className={journalTw.emptySubtitle}>
                 Tap "+ New" to write your first entry. No rules, just you.
               </Text>
-              <LiquidButton
-                label="Write your first entry"
-                variant="secondary"
-                size="md"
-                onPress={() => setShowNewEntry(true)}
-              />
-            </LiquidGlassCard>
-          ) : (
-            <View style={styles.entriesList}>
-              {journalEntries.map((entry, i) => (
-                <JournalEntryCard
-                  key={entry.id}
-                  entry={entry}
-                  index={i}
-                  onPress={() => setSelectedEntry(entry)}
+              <View className={journalTw.emptyCta}>
+                <LiquidButton
+                  label="Write your first entry"
+                  variant="secondary"
+                  size="md"
+                  onPress={openNewEntry}
+                  style={{ width: '100%' }}
                 />
-              ))}
-            </View>
-          )}
+              </View>
+              </View>
+            </GlassCardInset>
+          </LiquidGlassCard>
+        )}
+      </View>
+    ),
+    [journalEntries.length, openNewEntry],
+  );
 
-          <View style={{ height: 100 }} />
-        </ScrollView>
+  return (
+    <View className={journalTw.screen}>
+      <AnimatedBackground variant="journal" />
+      <SafeAreaView className={journalTw.safe} edges={['top']}>
+        <FlatList
+          className={journalTw.list}
+          data={journalEntries}
+          keyExtractor={(item) => item.id}
+          renderItem={renderEntry}
+          ListHeaderComponent={listHeader}
+          contentContainerClassName={journalTw.scrollContent}
+          showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={JournalEntrySeparator}
+          ListFooterComponent={JournalListFooter}
+        />
       </SafeAreaView>
 
       {/* Journal Detail Overlay */}
@@ -316,6 +339,10 @@ export const JournalScreen: React.FC = () => {
     </View>
   );
 };
+
+const JournalEntrySeparator = () => <View className={journalTw.entrySeparator} />;
+
+const JournalListFooter = () => <View className={journalTw.listFooter} />;
 
 const JournalDetailOverlay: React.FC<{
   entry: JournalEntry;
@@ -341,83 +368,26 @@ const JournalDetailOverlay: React.FC<{
   };
 
   return (
-    <Animated.View style={[detailStyles.overlay, overlayStyle]}>
-      <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />
+    <Animated.View className={journalTw.detailOverlay} style={overlayStyle}>
+      <BlurView intensity={60} tint="dark" className="absolute inset-0" />
       <LinearGradient
         colors={[Colors.background.primary, Colors.background.secondary]}
         style={StyleSheet.absoluteFill}
       />
-      <SafeAreaView style={detailStyles.safeArea} edges={['top', 'bottom']}>
-        <View style={detailStyles.header}>
-          <Pressable onPress={close} style={detailStyles.closeBtn}>
-            <Text style={detailStyles.closeBtnText}>✕ Close</Text>
+      <SafeAreaView className={journalTw.detailSafe} edges={['top', 'bottom']}>
+        <View className={journalTw.detailHeader}>
+          <Pressable onPress={close}>
+            <Text className={journalTw.detailCloseText}>✕ Close</Text>
           </Pressable>
-          <Text style={detailStyles.meta}>
+          <Text className={journalTw.detailMeta}>
             {format(parseISO(entry.createdAt), 'MMMM d, yyyy · h:mm a')}
           </Text>
         </View>
-        <ScrollView style={detailStyles.scroll} showsVerticalScrollIndicator={false}>
-          <Text style={detailStyles.title}>{entry.title}</Text>
-          <Text style={detailStyles.body}>{entry.body}</Text>
+        <ScrollView className={journalTw.detailScroll} showsVerticalScrollIndicator={false}>
+          <Text className={journalTw.detailTitle}>{entry.title}</Text>
+          <Text className={journalTw.detailBody}>{entry.body}</Text>
         </ScrollView>
       </SafeAreaView>
     </Animated.View>
   );
 };
-
-const detailStyles = StyleSheet.create({
-  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 200 },
-  safeArea: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.base,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.glass.borderLight,
-  },
-  closeBtn: {},
-  closeBtnText: { ...Typography.body, color: Colors.accent.secondary },
-  meta: { ...Typography.caption, color: Colors.text.tertiary },
-  scroll: { flex: 1, paddingHorizontal: Spacing.xl },
-  title: { ...Typography.h1, color: Colors.text.primary, marginTop: Spacing.xl, marginBottom: Spacing.lg },
-  body: { ...Typography.bodyLg, color: Colors.text.secondary, lineHeight: 30 },
-});
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background.primary },
-  safeArea: { flex: 1 },
-  scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: Spacing.base, paddingTop: Spacing.sm, gap: Spacing.base },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Spacing.sm },
-  pageTitle: { ...Typography.h1, color: Colors.text.primary },
-  pageSubtitle: { ...Typography.body, color: Colors.text.secondary, marginTop: 2 },
-  newBtn: {
-    height: 40,
-    paddingHorizontal: 18,
-    borderRadius: 20,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  newBtnText: { ...Typography.body, color: Colors.white, fontWeight: '600' },
-  promptCard: { padding: Spacing.base, flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start', overflow: 'hidden' },
-  promptEmoji: { fontSize: 22, marginTop: 2 },
-  promptText: { ...Typography.body, color: Colors.text.secondary, flex: 1, fontStyle: 'italic' },
-  entriesList: { gap: Spacing.sm },
-  entryCard: { padding: Spacing.base, overflow: 'hidden' },
-  entryHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-  entryTitle: { ...Typography.h3, color: Colors.text.primary, flex: 1 },
-  entryDate: { ...Typography.caption, color: Colors.accent.secondary },
-  entryPreview: { ...Typography.body, color: Colors.text.secondary, lineHeight: 22 },
-  entryFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-  entryTime: { ...Typography.caption, color: Colors.text.tertiary },
-  entryWords: { ...Typography.caption, color: Colors.text.tertiary },
-  emptyCard: { padding: Spacing['3xl'], alignItems: 'center', gap: Spacing.base },
-  emptyEmoji: { fontSize: 56 },
-  emptyTitle: { ...Typography.h3, color: Colors.text.primary },
-  emptySubtitle: { ...Typography.body, color: Colors.text.secondary, textAlign: 'center' },
-});

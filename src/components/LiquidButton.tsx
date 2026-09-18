@@ -5,13 +5,12 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
-  withSequence,
-  runOnJS,
+  interpolate,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Radius, Shadow } from '@theme';
+import { Colors, Typography, Radius } from '@theme';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'sm' | 'md' | 'lg';
@@ -64,10 +63,7 @@ export const LiquidButton: React.FC<LiquidButtonProps> = ({
   const cfg = SIZE_CONFIG[size];
 
   const containerStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: withSpring(pressed.value ? 0.95 : 1, { damping: 20, stiffness: 400 }) },
-    ],
-    opacity: withTiming(disabled ? 0.45 : 1, { duration: 200 }),
+    transform: [{ scale: interpolate(pressed.value, [0, 1], [1, 0.95]) }],
   }));
 
   const rippleStyle = useAnimatedStyle(() => ({
@@ -76,7 +72,7 @@ export const LiquidButton: React.FC<LiquidButtonProps> = ({
   }));
 
   const handlePressIn = () => {
-    pressed.value = 1;
+    pressed.value = withSpring(1, { damping: 20, stiffness: 400 });
     ripple.value = 0;
     rippleOpacity.value = 0.3;
     ripple.value = withSpring(1.8, { damping: 12, stiffness: 180 });
@@ -84,7 +80,7 @@ export const LiquidButton: React.FC<LiquidButtonProps> = ({
   };
 
   const handlePressOut = () => {
-    pressed.value = 0;
+    pressed.value = withSpring(0, { damping: 20, stiffness: 400 });
   };
 
   const handlePress = () => {
@@ -98,12 +94,20 @@ export const LiquidButton: React.FC<LiquidButtonProps> = ({
 
   return (
     <Pressable
+      style={style}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       onPress={handlePress}
       disabled={disabled || loading}
     >
-      <Animated.View style={[containerStyle, style]}>
+      <Animated.View
+        style={[
+          styles.shell,
+          containerStyle,
+          (disabled || loading) && styles.disabled,
+          style?.flex != null && styles.shellFlex,
+        ]}
+      >
         {isGhost ? (
           <>
             <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
@@ -130,6 +134,7 @@ export const LiquidButton: React.FC<LiquidButtonProps> = ({
             styles.border,
             { borderColor: isGhost ? Colors.glass.border : 'rgba(255,255,255,0.2)' },
           ]}
+          pointerEvents="none"
         />
 
         {/* Ripple */}
@@ -168,6 +173,16 @@ export const LiquidButton: React.FC<LiquidButtonProps> = ({
 };
 
 const styles = StyleSheet.create({
+  shell: {
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+  },
+  shellFlex: {
+    width: '100%',
+  },
+  disabled: {
+    opacity: 0.45,
+  },
   border: {
     borderRadius: Radius.full,
     borderWidth: 1,

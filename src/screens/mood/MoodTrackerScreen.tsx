@@ -1,41 +1,37 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import {
-  StyleSheet,
   Text,
   View,
-  ScrollView,
-  Dimensions,
   FlatList,
+  type ListRenderItemInfo,
+  Dimensions,
 } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
   withTiming,
-  interpolate,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { format, parseISO, isToday, isYesterday, subDays } from 'date-fns';
+import { format, parseISO, isToday, subDays } from 'date-fns';
+import { formatRecentDayLabel } from '@utils/date';
+import { GlassCardInset } from '@components/GlassCardInset';
 import { LiquidGlassCard } from '@components/LiquidGlassCard';
 import { AnimatedBackground } from '@components/AnimatedBackground';
-import { Colors, Typography, Spacing, Radius } from '@theme';
-import { useAppStore, type MoodEntry, type MoodLevel } from '@store/useAppStore';
+import { Spacing } from '@theme';
+import { useAppStore } from '@store/useAppStore';
+import type { MoodEntry } from '@/domain/models';
+import { MOOD_CATALOG, type MoodLevel } from '@/domain/mood';
+import { moodTw } from './mood.tw';
+import { moodChartStatic } from './mood.static';
 
 const { width: W } = Dimensions.get('window');
 
-const MOOD_META: Record<MoodLevel, { emoji: string; label: string; color: string; grad: [string, string] }> = {
-  rad:   { emoji: '🤩', label: 'Rad',   color: Colors.mood.rad,   grad: ['#F472B6','#EC4899'] },
-  good:  { emoji: '😊', label: 'Good',  color: Colors.mood.good,  grad: ['#34D399','#10B981'] },
-  meh:   { emoji: '😐', label: 'Meh',   color: Colors.mood.meh,   grad: ['#FBBF24','#F59E0B'] },
-  bad:   { emoji: '😔', label: 'Bad',   color: Colors.mood.bad,   grad: ['#60A5FA','#3B82F6'] },
-  awful: { emoji: '😢', label: 'Awful', color: Colors.mood.awful, grad: ['#F87171','#EF4444'] },
-};
+function moodChartValue(level: MoodLevel): number {
+  return MOOD_CATALOG[level].chartValue;
+}
 
-const MOOD_VALUE: Record<MoodLevel, number> = { rad: 5, good: 4, meh: 3, bad: 2, awful: 1 };
-
-// Simple custom chart using Reanimated
 const MoodChart: React.FC<{ entries: MoodEntry[] }> = ({ entries }) => {
   const last7 = useMemo(() => {
     const days = Array.from({ length: 7 }, (_, i) => {
@@ -45,7 +41,7 @@ const MoodChart: React.FC<{ entries: MoodEntry[] }> = ({ entries }) => {
       return {
         date,
         label: format(date, 'EEE'),
-        value: entry ? MOOD_VALUE[entry.mood] : 0,
+        value: entry ? moodChartValue(entry.mood) : 0,
         mood: entry?.mood ?? null,
       };
     });
@@ -56,9 +52,9 @@ const MoodChart: React.FC<{ entries: MoodEntry[] }> = ({ entries }) => {
   const BAR_W = (W - Spacing.base * 2 - Spacing.xl * 2) / 7 - 6;
 
   return (
-    <View style={chartStyles.container}>
-      <Text style={chartStyles.title}>Last 7 Days</Text>
-      <View style={chartStyles.chart}>
+    <View className={moodTw.chartContainer}>
+      <Text className={moodTw.chartTitle}>Last 7 Days</Text>
+      <View className={moodTw.chartRow}>
         {last7.map((day, i) => (
           <MoodBar
             key={i}
@@ -92,68 +88,43 @@ const MoodBar: React.FC<{
     height: `${fillHeight.value * 100}%` as `${number}%`,
   }));
 
-  const meta = day.mood ? MOOD_META[day.mood] : null;
+  const meta = day.mood ? MOOD_CATALOG[day.mood] : null;
   const today = isToday(day.date);
 
   return (
-    <View style={[chartStyles.barWrapper, { width: barWidth }]}>
-      <View style={[chartStyles.barTrack, { height: chartHeight }]}>
-        <Animated.View style={[chartStyles.barFill, barStyle]}>
+    <View className={moodTw.barWrapper} style={{ width: barWidth }}>
+      <View className={moodTw.barTrack} style={{ height: chartHeight }}>
+        <Animated.View className={moodTw.barFill} style={barStyle}>
           {meta && (
             <LinearGradient
-              colors={meta.grad}
+              colors={meta.gradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 0, y: 1 }}
-              style={StyleSheet.absoluteFill}
+              style={moodChartStatic.barEmptyFill}
             />
           )}
-          {!meta && <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.08)' }]} />}
-          {/* Liquid shimmer top */}
-          {meta && <View style={chartStyles.barShimmer} />}
+          {!meta && <View style={moodChartStatic.barEmptyBg} />}
+          {meta && <View className={moodTw.barShimmer} />}
         </Animated.View>
       </View>
-      <Text style={[chartStyles.dayLabel, today && chartStyles.todayLabel]}>
+      <Text className={today ? moodTw.dayLabelToday : moodTw.dayLabel}>
         {today ? 'Now' : day.label}
       </Text>
-      {meta && <Text style={{ fontSize: 14, textAlign: 'center' }}>{meta.emoji}</Text>}
+      {meta && <Text className={moodTw.barEmoji}>{meta.emoji}</Text>}
     </View>
   );
 };
 
-const chartStyles = StyleSheet.create({
-  container: { gap: Spacing.base },
-  title: { ...Typography.label, color: Colors.text.secondary },
-  chart: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, paddingBottom: 4 },
-  barWrapper: { alignItems: 'center', gap: 4 },
-  barTrack: {
-    width: '100%',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 6,
-    justifyContent: 'flex-end',
-    overflow: 'hidden',
-  },
-  barFill: {
-    width: '100%',
-    borderRadius: 6,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  barShimmer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.4)',
-    borderRadius: 3,
-  },
-  dayLabel: { ...Typography.caption, color: Colors.text.tertiary },
-  todayLabel: { color: Colors.accent.secondary },
-});
+const LOG_LIST_MAX = 20;
 
-// Mood Entry Card
-const MoodEntryCard: React.FC<{ entry: MoodEntry; index: number }> = ({ entry, index }) => {
-  const meta = MOOD_META[entry.mood];
+const MoodEntryCard = React.memo(function MoodEntryCard({
+  entry,
+  index,
+}: {
+  entry: MoodEntry;
+  index: number;
+}) {
+  const meta = MOOD_CATALOG[entry.mood];
   const scale = useSharedValue(0.9);
   const opacity = useSharedValue(0);
 
@@ -171,38 +142,46 @@ const MoodEntryCard: React.FC<{ entry: MoodEntry; index: number }> = ({ entry, i
   }));
 
   const date = parseISO(entry.createdAt);
-  const dateLabel = isToday(date) ? 'Today' : isYesterday(date) ? 'Yesterday' : format(date, 'MMM d');
+  const dateLabel = formatRecentDayLabel(date);
   const timeLabel = format(date, 'h:mm a');
 
   return (
     <Animated.View style={style}>
-      <LiquidGlassCard style={styles.entryCard} intensity="light">
-        <LinearGradient
-          colors={[`${meta.color}20`, 'transparent']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[StyleSheet.absoluteFill, { borderRadius: Radius.md }]}
-        />
-        <View style={styles.entryRow}>
-          <View style={[styles.moodBadge, { backgroundColor: `${meta.color}25` }]}>
-            <Text style={styles.moodBadgeEmoji}>{meta.emoji}</Text>
+      <LiquidGlassCard className={moodTw.entryCard} intensity="light">
+        <GlassCardInset gradientColors={[`${meta.color}20`, 'transparent']}>
+          <View className={moodTw.entryRow}>
+            <View
+              className={moodTw.moodBadge}
+              style={{ backgroundColor: `${meta.color}25` }}
+            >
+              <Text className={moodTw.moodBadgeEmoji}>{meta.emoji}</Text>
+            </View>
+            <View className={moodTw.entryText}>
+              <Text className={moodTw.moodLabel}>{meta.label}</Text>
+              {entry.note && (
+                <Text className={moodTw.moodNote} numberOfLines={1}>
+                  {entry.note}
+                </Text>
+              )}
+            </View>
+            <View className={moodTw.entryMeta}>
+              <Text className={moodTw.entryDate}>{dateLabel}</Text>
+              <Text className={moodTw.entryTime}>{timeLabel}</Text>
+            </View>
           </View>
-          <View style={styles.entryText}>
-            <Text style={styles.moodLabel}>{meta.label}</Text>
-            {entry.note && <Text style={styles.moodNote} numberOfLines={1}>{entry.note}</Text>}
-          </View>
-          <View style={styles.entryMeta}>
-            <Text style={styles.entryDate}>{dateLabel}</Text>
-            <Text style={styles.entryTime}>{timeLabel}</Text>
-          </View>
-        </View>
+        </GlassCardInset>
       </LiquidGlassCard>
     </Animated.View>
   );
-};
+});
 
 export const MoodTrackerScreen: React.FC = () => {
   const moodEntries = useAppStore((s) => s.moodEntries);
+
+  const logEntries = useMemo(
+    () => moodEntries.slice(0, LOG_LIST_MAX),
+    [moodEntries],
+  );
 
   const moodCounts = useMemo(() => {
     const counts: Partial<Record<MoodLevel, number>> = {};
@@ -217,129 +196,102 @@ export const MoodTrackerScreen: React.FC = () => {
     return sorted[0]?.[0] as MoodLevel | undefined;
   }, [moodCounts]);
 
-  return (
-    <View style={styles.container}>
-      <AnimatedBackground variant="mood" />
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Header */}
-          <View style={styles.pageHeader}>
-            <Text style={styles.pageTitle}>Mood Tracker</Text>
-            <Text style={styles.pageSubtitle}>{moodEntries.length} check-ins logged</Text>
-          </View>
+  const renderLogItem = useCallback(
+    ({ item, index }: ListRenderItemInfo<MoodEntry>) => (
+      <MoodEntryCard entry={item} index={index} />
+    ),
+    [],
+  );
 
-          {/* Chart Card */}
-          <LiquidGlassCard style={styles.chartCard} intensity="medium">
-            <MoodChart entries={moodEntries} />
-          </LiquidGlassCard>
+  const listHeader = useMemo(
+    () => (
+      <View className={moodTw.listHeader}>
+        <View className={moodTw.pageHeader}>
+          <Text className={moodTw.pageTitle}>Mood Tracker</Text>
+          <Text className={moodTw.pageSubtitle}>
+            {moodEntries.length} check-ins logged
+          </Text>
+        </View>
 
-          {/* Summary pills */}
-          {moodEntries.length > 0 && (
-            <LiquidGlassCard style={styles.summaryCard} intensity="light">
-              <Text style={styles.sectionLabel}>Mood Distribution</Text>
-              <View style={styles.pillsRow}>
-                {(Object.entries(moodCounts) as [MoodLevel, number][])
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([mood, count]) => {
-                    const meta = MOOD_META[mood];
-                    return (
-                      <View
-                        key={mood}
-                        style={[styles.pill, { backgroundColor: `${meta.color}22`, borderColor: `${meta.color}44` }]}
+        <LiquidGlassCard className={moodTw.chartCard} intensity="medium">
+          <MoodChart entries={moodEntries} />
+        </LiquidGlassCard>
+
+        {moodEntries.length > 0 && (
+          <LiquidGlassCard className={moodTw.summaryCard} intensity="light">
+            <Text className={moodTw.sectionLabel}>Mood Distribution</Text>
+            <View className={moodTw.pillsRow}>
+              {(Object.entries(moodCounts) as [MoodLevel, number][])
+                .sort(([, a], [, b]) => b - a)
+                .map(([mood, count]) => {
+                  const meta = MOOD_CATALOG[mood];
+                  return (
+                    <View
+                      key={mood}
+                      className={moodTw.pill}
+                      style={{
+                        backgroundColor: `${meta.color}22`,
+                        borderColor: `${meta.color}44`,
+                      }}
+                    >
+                      <Text className={moodTw.pillEmoji}>{meta.emoji}</Text>
+                      <Text
+                        className={moodTw.pillLabel}
+                        style={{ color: meta.color }}
                       >
-                        <Text style={styles.pillEmoji}>{meta.emoji}</Text>
-                        <Text style={[styles.pillLabel, { color: meta.color }]}>
-                          {count}x
-                        </Text>
-                      </View>
-                    );
-                  })}
-              </View>
-              {dominantMood && (
-                <Text style={styles.insightText}>
-                  You most often feel {MOOD_META[dominantMood].label.toLowerCase()} {MOOD_META[dominantMood].emoji}
-                </Text>
-              )}
-            </LiquidGlassCard>
-          )}
-
-          {/* Entry Log */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Check-in Log</Text>
-          </View>
-
-          {moodEntries.length === 0 ? (
-            <LiquidGlassCard style={styles.emptyCard} intensity="light">
-              <Text style={styles.emptyEmoji}>🌸</Text>
-              <Text style={styles.emptyTitle}>No check-ins yet</Text>
-              <Text style={styles.emptySubtitle}>
-                Head to the Home tab and log your first mood of the day.
-              </Text>
-            </LiquidGlassCard>
-          ) : (
-            <View style={styles.entryList}>
-              {moodEntries.slice(0, 20).map((entry, i) => (
-                <MoodEntryCard key={entry.id} entry={entry} index={i} />
-              ))}
+                        {count}x
+                      </Text>
+                    </View>
+                  );
+                })}
             </View>
-          )}
+            {dominantMood && (
+              <Text className={moodTw.insightText}>
+                You most often feel {MOOD_CATALOG[dominantMood].label.toLowerCase()}{' '}
+                {MOOD_CATALOG[dominantMood].emoji}
+              </Text>
+            )}
+          </LiquidGlassCard>
+        )}
 
-          <View style={{ height: 100 }} />
-        </ScrollView>
+        <View className={moodTw.sectionHeader}>
+          <Text className={moodTw.sectionTitle}>Check-in Log</Text>
+        </View>
+
+        {moodEntries.length === 0 && (
+          <LiquidGlassCard className={moodTw.emptyCard} intensity="light">
+            <Text className={moodTw.emptyEmoji}>🌸</Text>
+            <Text className={moodTw.emptyTitle}>No check-ins yet</Text>
+            <Text className={moodTw.emptySubtitle}>
+              Head to the Home tab and log your first mood of the day.
+            </Text>
+          </LiquidGlassCard>
+        )}
+      </View>
+    ),
+    [moodEntries, moodCounts, dominantMood],
+  );
+
+  return (
+    <View className={moodTw.screen}>
+      <AnimatedBackground variant="mood" />
+      <SafeAreaView className={moodTw.safe} edges={['top']}>
+        <FlatList
+          className={moodTw.list}
+          data={logEntries}
+          keyExtractor={(item) => item.id}
+          renderItem={renderLogItem}
+          ListHeaderComponent={listHeader}
+          contentContainerClassName={moodTw.scrollContent}
+          showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={LogSeparator}
+          ListFooterComponent={ListFooterSpacer}
+        />
       </SafeAreaView>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background.primary },
-  safeArea: { flex: 1 },
-  scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: Spacing.base, paddingTop: Spacing.sm, gap: Spacing.base },
-  pageHeader: { paddingVertical: Spacing.sm },
-  pageTitle: { ...Typography.h1, color: Colors.text.primary },
-  pageSubtitle: { ...Typography.body, color: Colors.text.secondary, marginTop: 2 },
-  chartCard: { padding: Spacing.base },
-  summaryCard: { padding: Spacing.base, gap: Spacing.base },
-  sectionLabel: { ...Typography.label, color: Colors.text.secondary },
-  pillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-  },
-  pillEmoji: { fontSize: 16 },
-  pillLabel: { ...Typography.bodySm, fontWeight: '600' },
-  insightText: { ...Typography.body, color: Colors.text.secondary },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { ...Typography.h3, color: Colors.text.primary },
-  entryList: { gap: Spacing.sm },
-  entryCard: { padding: Spacing.base, overflow: 'hidden' },
-  entryRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.base },
-  moodBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  moodBadgeEmoji: { fontSize: 26 },
-  entryText: { flex: 1 },
-  moodLabel: { ...Typography.h3, color: Colors.text.primary },
-  moodNote: { ...Typography.caption, color: Colors.text.secondary },
-  entryMeta: { alignItems: 'flex-end' },
-  entryDate: { ...Typography.bodySm, color: Colors.text.secondary },
-  entryTime: { ...Typography.caption, color: Colors.text.tertiary },
-  emptyCard: { padding: Spacing['2xl'], alignItems: 'center', gap: Spacing.base },
-  emptyEmoji: { fontSize: 48 },
-  emptyTitle: { ...Typography.h3, color: Colors.text.primary },
-  emptySubtitle: { ...Typography.body, color: Colors.text.secondary, textAlign: 'center' },
-});
+const LogSeparator = () => <View className={moodTw.logSeparator} />;
+
+const ListFooterSpacer = () => <View className={moodTw.listFooter} />;

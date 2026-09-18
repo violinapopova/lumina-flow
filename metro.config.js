@@ -1,10 +1,11 @@
 const path = require('path');
 const { getDefaultConfig } = require('expo/metro-config');
+const { withNativeWind } = require('nativewind/metro');
 
 const projectRoot = __dirname;
 
 /** @type {import('expo/metro-config').MetroConfig} */
-const config = getDefaultConfig(projectRoot);
+let config = getDefaultConfig(projectRoot);
 
 config.resolver.sourceExts.push('mjs');
 
@@ -49,7 +50,6 @@ function mapAliasToAbsolute(moduleName) {
   return null;
 }
 
-// Chain with Metro default: inside resolveRequest, context.resolveRequest is the core resolver
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   const mapped = mapAliasToAbsolute(moduleName);
   if (mapped) {
@@ -58,4 +58,4 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   return context.resolveRequest(context, moduleName, platform);
 };
 
-module.exports = config;
+module.exports = withNativeWind(config, { input: './global.css' });

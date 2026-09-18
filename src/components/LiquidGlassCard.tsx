@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import {
   StyleSheet,
   ViewStyle,
@@ -12,7 +12,6 @@ import Animated, {
   withSpring,
   withTiming,
   interpolate,
-  runOnJS,
 } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,6 +20,7 @@ import { Colors, Radius, Shadow } from '@theme';
 
 interface LiquidGlassCardProps {
   children: React.ReactNode;
+  className?: string;
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
   intensity?: 'light' | 'medium' | 'strong';
@@ -31,6 +31,8 @@ interface LiquidGlassCardProps {
   animated?: boolean;
   /** Entry animation: card pours in with gravity */
   enterDelay?: number;
+  /** Tailwind classes for the inner content region (inside blur/glass). */
+  contentClassName?: string;
 }
 
 const BLUR_INTENSITY = { light: 20, medium: 40, strong: 60 } as const;
@@ -41,6 +43,8 @@ const AnimatedView = Animated.View;
 
 export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
   children,
+  className,
+  contentClassName,
   style,
   onPress,
   intensity = 'medium',
@@ -66,17 +70,17 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
     }
   }, [animated, enterDelay]);
 
-  const cardStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: withSpring(pressed.value ? 0.97 : 1, { damping: 20, stiffness: 300 }) },
-      { translateY: withSpring(pressed.value ? 2 : 0, { damping: 20, stiffness: 300 }) },
-      // Entry: pour in from above
-      {
-        translateY: interpolate(entryProgress.value, [0, 1], [-40, 0]) + (pressed.value ? 2 : 0),
-      },
-    ],
-    opacity: interpolate(entryProgress.value, [0, 0.6, 1], [0, 0.7, 1]),
-  }));
+  const cardStyle = useAnimatedStyle(() => {
+    const pressTranslate = interpolate(pressed.value, [0, 1], [0, 2]);
+    const entryTranslate = interpolate(entryProgress.value, [0, 1], [-40, 0]);
+    return {
+      transform: [
+        { scale: interpolate(pressed.value, [0, 1], [1, 0.97]) },
+        { translateY: entryTranslate + pressTranslate },
+      ],
+      opacity: interpolate(entryProgress.value, [0, 0.6, 1], [0, 0.7, 1]),
+    };
+  });
 
   const rippleStyle = useAnimatedStyle(() => ({
     transform: [{ scale: rippleScale.value }],
@@ -84,11 +88,11 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
   }));
 
   const borderStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(pressed.value ? 0.5 : 0.18, { duration: 200 }),
+    opacity: interpolate(pressed.value, [0, 1], [0.18, 0.5]),
   }));
 
   const handlePressIn = () => {
-    pressed.value = 1;
+    pressed.value = withSpring(1, { damping: 20, stiffness: 300 });
     if (ripple) {
       rippleScale.value = 0;
       rippleOpacity.value = 0.15;
@@ -98,18 +102,20 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
   };
 
   const handlePressOut = () => {
-    pressed.value = 0;
+    pressed.value = withSpring(0, { damping: 20, stiffness: 300 });
   };
 
   const handlePress = () => {
-    runOnJS(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light))();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress?.();
   };
 
   const blurIntensity = BLUR_INTENSITY[intensity];
   const bgOpacity = BG_OPACITY[intensity];
 
-  const content = (
+  const innerClassName = contentClassName ?? className;
+
+  const animatedCard = (
     <AnimatedView style={[styles.container, cardStyle, style]}>
       {/* Frosted glass base */}
       <BlurView intensity={blurIntensity} tint="dark" style={StyleSheet.absoluteFill} />
@@ -154,7 +160,9 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
       )}
 
       {/* Content */}
-      <View style={styles.content}>{children}</View>
+      <View style={styles.content} className={innerClassName}>
+        {children}
+      </View>
     </AnimatedView>
   );
 
@@ -167,19 +175,23 @@ export const LiquidGlassCard: React.FC<LiquidGlassCardProps> = ({
         disabled={disabled}
         style={styles.pressable}
       >
-        {content}
+        {animatedCard}
       </Pressable>
     );
   }
 
-  return content;
+  return animatedCard;
 };
 
 const styles = StyleSheet.create({
   pressable: {
     borderRadius: Radius.lg,
+    width: '100%',
+    alignSelf: 'stretch',
   },
   container: {
+    width: '100%',
+    alignSelf: 'stretch',
     borderRadius: Radius.lg,
     overflow: 'hidden',
     ...Shadow.card,
@@ -204,5 +216,7 @@ const styles = StyleSheet.create({
   content: {
     position: 'relative',
     zIndex: 1,
+    width: '100%',
+    alignSelf: 'stretch',
   },
 });

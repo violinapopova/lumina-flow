@@ -1,0 +1,16 @@
+export const onboardingTw = {
+  screen: 'flex-1 bg-void',
+  safe: 'flex-1',
+  logoRow: 'px-xl pt-base pb-sm',
+  logoText: 'text-h2 text-accent-tertiary tracking-wide',
+  cardWrapper: 'rounded-lg',
+  card: 'p-2xl min-h-[45%] overflow-hidden relative',
+  textContent: 'gap-md',
+  title: 'text-display-sm text-center text-ink-primary',
+  subtitle: 'text-body-lg text-ink-secondary text-center leading-7',
+  accentDot: 'absolute -bottom-5 -right-5 w-20 h-20 rounded-full opacity-15',
+  dots: 'flex-row justify-center items-center gap-1.5 py-lg',
+  dot: 'h-2 rounded',
+  ctaContainer: 'px-xl pb-lg gap-sm items-center',
+  ctaButton: 'w-full',
+} as const;

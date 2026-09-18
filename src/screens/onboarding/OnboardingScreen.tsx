@@ -23,7 +23,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LiquidGlassCard } from '@components/LiquidGlassCard';
 import { LiquidButton } from '@components/LiquidButton';
 import { AnimatedBackground } from '@components/AnimatedBackground';
-import { Colors, Typography, Spacing, Radius } from '@theme';
+import { Colors } from '@theme';
+import { onboardingTw } from './onboarding.tw';
+import { onboardingStatic } from './onboarding.static';
 import { useAppStore } from '@store/useAppStore';
 import type { RootStackParamList } from '@navigation/types';
 
@@ -103,26 +105,33 @@ const SlideCard: React.FC<{ item: OnboardingSlide; index: number; scrollX: Share
   });
 
   return (
-    <View style={styles.slide}>
-      <Animated.View style={[styles.cardWrapper, cardStyle]}>
-        <LiquidGlassCard style={styles.card} intensity="medium" borderGlow animated enterDelay={index * 150}>
-          {/* Gradient tint */}
+    <View style={onboardingStatic.slide}>
+      <Animated.View className={onboardingTw.cardWrapper} style={cardStyle}>
+        <LiquidGlassCard
+          className={onboardingTw.card}
+          intensity="medium"
+          borderGlow
+          animated
+          enterDelay={index * 150}
+        >
           <LinearGradient
             colors={item.gradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={[StyleSheet.absoluteFill, { borderRadius: Radius.lg }]}
+            style={[StyleSheet.absoluteFill, onboardingStatic.slideGradient]}
           />
 
-          <Animated.Text style={[styles.emoji, emojiStyle]}>{item.emoji}</Animated.Text>
+          <Animated.Text style={[onboardingStatic.emoji, emojiStyle]}>{item.emoji}</Animated.Text>
 
-          <View style={styles.textContent}>
-            <Text style={[styles.title, { color: Colors.text.primary }]}>{item.title}</Text>
-            <Text style={styles.subtitle}>{item.subtitle}</Text>
+          <View className={onboardingTw.textContent}>
+            <Text className={onboardingTw.title}>{item.title}</Text>
+            <Text className={onboardingTw.subtitle}>{item.subtitle}</Text>
           </View>
 
-          {/* Decorative liquid dot */}
-          <View style={[styles.accentDot, { backgroundColor: item.accentColor }]} />
+          <View
+            className={onboardingTw.accentDot}
+            style={{ backgroundColor: item.accentColor }}
+          />
         </LiquidGlassCard>
       </Animated.View>
     </View>
@@ -157,13 +166,12 @@ export const OnboardingScreen: React.FC<Props> = ({ navigation }) => {
   const isLast = activeIndex === SLIDES.length - 1;
 
   return (
-    <View style={styles.container}>
+    <View className={onboardingTw.screen}>
       <AnimatedBackground variant="home" />
 
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-        {/* Logo */}
-        <View style={styles.logoRow}>
-          <Text style={styles.logoText}>LuminaFlow</Text>
+      <SafeAreaView className={onboardingTw.safe} edges={['top', 'bottom']}>
+        <View className={onboardingTw.logoRow}>
+          <Text className={onboardingTw.logoText}>LuminaFlow</Text>
         </View>
 
         {/* Slides */}
@@ -182,28 +190,28 @@ export const OnboardingScreen: React.FC<Props> = ({ navigation }) => {
         />
 
         {/* Dot indicators */}
-        <View style={styles.dots}>
+        <View className={onboardingTw.dots}>
           {SLIDES.map((_, i) => (
             <DotIndicator key={i} index={i} activeIndex={activeIndex} scrollX={scrollX} />
           ))}
         </View>
 
-        {/* CTA Button */}
-        <View style={styles.ctaContainer}>
-          <LiquidButton
-            label={isLast ? 'Begin Your Journey ✨' : 'Continue'}
-            onPress={handleNext}
-            variant="primary"
-            size="lg"
-            style={styles.ctaButton}
-          />
+        <View className={onboardingTw.ctaContainer}>
+          <View className={onboardingTw.ctaButton}>
+            <LiquidButton
+              label={isLast ? 'Begin Your Journey ✨' : 'Continue'}
+              onPress={handleNext}
+              variant="primary"
+              size="lg"
+              style={{ width: '100%' }}
+            />
+          </View>
           {!isLast && (
             <LiquidButton
               label="Skip"
               onPress={handleGetStarted}
               variant="ghost"
               size="sm"
-              style={styles.skipButton}
             />
           )}
         </View>
@@ -226,89 +234,11 @@ const DotIndicator: React.FC<{
 
   return (
     <Animated.View
+      className={onboardingTw.dot}
       style={[
-        styles.dot,
         dotStyle,
         { backgroundColor: activeIndex === index ? Colors.accent.secondary : Colors.text.tertiary },
       ]}
     />
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background.primary },
-  safeArea: { flex: 1 },
-  logoRow: {
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.base,
-    paddingBottom: Spacing.sm,
-  },
-  logoText: {
-    ...Typography.h2,
-    color: Colors.accent.tertiary,
-    letterSpacing: 1,
-  },
-  slide: {
-    width: W,
-    flex: 1,
-    paddingHorizontal: Spacing.xl,
-    justifyContent: 'center',
-  },
-  cardWrapper: {
-    borderRadius: Radius.lg,
-  },
-  card: {
-    padding: Spacing['2xl'],
-    minHeight: H * 0.45,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  emoji: {
-    fontSize: 72,
-    marginBottom: Spacing.xl,
-    textAlign: 'center',
-  },
-  textContent: {
-    gap: Spacing.md,
-  },
-  title: {
-    ...Typography.displaySm,
-    textAlign: 'center',
-  },
-  subtitle: {
-    ...Typography.bodyLg,
-    color: Colors.text.secondary,
-    textAlign: 'center',
-    lineHeight: 28,
-  },
-  accentDot: {
-    position: 'absolute',
-    bottom: -20,
-    right: -20,
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    opacity: 0.15,
-  },
-  dots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: Spacing.lg,
-  },
-  dot: {
-    height: 8,
-    borderRadius: 4,
-  },
-  ctaContainer: {
-    paddingHorizontal: Spacing.xl,
-    paddingBottom: Spacing.lg,
-    gap: Spacing.sm,
-    alignItems: 'center',
-  },
-  ctaButton: {
-    width: '100%',
-  },
-  skipButton: {},
-});

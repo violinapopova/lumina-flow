@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, Text, View, Dimensions } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -11,23 +11,21 @@ import Animated, {
   cancelAnimation,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { Colors, Typography } from '@theme';
+import type { BreathPhase } from '@/domain/breathing';
 
 const { width: W } = Dimensions.get('window');
 const ORB_SIZE = W * 0.65;
 
-type Phase = 'idle' | 'inhale' | 'hold' | 'exhale' | 'pause';
-
 interface BreathingOrbProps {
   isActive: boolean;
-  phase: Phase;
+  phase: BreathPhase;
   progress: number; // 0–1
   label: string;
   secondsLeft: number;
 }
 
-const PHASE_COLORS: Record<Phase, [string, string, string]> = {
+const PHASE_COLORS: Record<BreathPhase, [string, string, string]> = {
   idle:    ['rgba(124,95,244,0.6)', 'rgba(167,139,250,0.4)', 'rgba(196,181,253,0.2)'],
   inhale:  ['rgba(96,165,250,0.7)', 'rgba(110,231,183,0.5)', 'rgba(167,139,250,0.3)'],
   hold:    ['rgba(251,191,36,0.6)', 'rgba(249,168,212,0.4)', 'rgba(196,181,253,0.3)'],
@@ -35,7 +33,7 @@ const PHASE_COLORS: Record<Phase, [string, string, string]> = {
   pause:   ['rgba(124,95,244,0.4)', 'rgba(167,139,250,0.3)', 'rgba(196,181,253,0.15)'],
 };
 
-const PHASE_SCALE: Record<Phase, number> = {
+const PHASE_SCALE: Record<BreathPhase, number> = {
   idle: 0.75,
   inhale: 1.0,
   hold: 1.0,
@@ -108,7 +106,7 @@ export const BreathingOrb: React.FC<BreathingOrbProps> = ({
       <Animated.View style={[styles.glowRing, glowStyle]}>
         <LinearGradient
           colors={[`${colors[0]}44`, `${colors[1]}22`, 'transparent']}
-          style={StyleSheet.absoluteFill}
+          style={[StyleSheet.absoluteFill, styles.glowRingGradient]}
           start={{ x: 0.5, y: 0.5 }}
           end={{ x: 1, y: 1 }}
         />
@@ -140,10 +138,6 @@ export const BreathingOrb: React.FC<BreathingOrbProps> = ({
           end={{ x: 0.8, y: 0.9 }}
           style={styles.orb}
         >
-          <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
-          {/* Inner highlight */}
-          <View style={styles.highlight} />
-          {/* Progress ring */}
           <View style={styles.centerContent}>
             <Text style={styles.seconds}>{secondsLeft}</Text>
             <Text style={styles.phaseLabel}>{label}</Text>
@@ -162,9 +156,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   glowRing: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: (ORB_SIZE + 80) / 2,
+    overflow: 'hidden',
     backgroundColor: 'rgba(124,95,244,0.08)',
+  },
+  glowRingGradient: {
+    borderRadius: (ORB_SIZE + 80) / 2,
   },
   rotatingRing: {
     position: 'absolute',
@@ -189,17 +187,10 @@ const styles = StyleSheet.create({
   orb: {
     width: '100%',
     height: '100%',
+    borderRadius: ORB_SIZE / 2,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  highlight: {
-    position: 'absolute',
-    top: ORB_SIZE * 0.1,
-    left: ORB_SIZE * 0.2,
-    width: ORB_SIZE * 0.35,
-    height: ORB_SIZE * 0.2,
-    borderRadius: ORB_SIZE * 0.15,
-    backgroundColor: 'rgba(255,255,255,0.22)',
   },
   centerContent: {
     alignItems: 'center',

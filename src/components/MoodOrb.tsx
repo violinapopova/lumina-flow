@@ -7,12 +7,12 @@ import Animated, {
   withSequence,
   withTiming,
   interpolate,
-  runOnJS,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { Colors, Typography, Shadow } from '@theme';
-import type { MoodLevel } from '@store/useAppStore';
+import { Colors, Typography } from '@theme';
+import type { MoodLevel } from '@/domain/mood';
+import { MOOD_CATALOG } from '@/domain/mood';
 
 interface MoodOrbProps {
   mood: MoodLevel;
@@ -23,22 +23,6 @@ interface MoodOrbProps {
   delay?: number;
   style?: ViewStyle;
 }
-
-const MOOD_COLORS: Record<MoodLevel, [string, string]> = {
-  rad: ['#F472B6', '#EC4899'],
-  good: ['#34D399', '#10B981'],
-  meh: ['#FBBF24', '#F59E0B'],
-  bad: ['#60A5FA', '#3B82F6'],
-  awful: ['#F87171', '#EF4444'],
-};
-
-const MOOD_GLOW: Record<MoodLevel, string> = {
-  rad: 'rgba(244, 114, 182, 0.6)',
-  good: 'rgba(52, 211, 153, 0.6)',
-  meh: 'rgba(251, 191, 36, 0.6)',
-  bad: 'rgba(96, 165, 250, 0.6)',
-  awful: 'rgba(248, 113, 113, 0.6)',
-};
 
 export const MoodOrb: React.FC<MoodOrbProps> = ({
   mood,
@@ -86,8 +70,8 @@ export const MoodOrb: React.FC<MoodOrbProps> = ({
   }));
 
   const labelStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(selected$.value, [0, 1], [0.55, 1]),
-    transform: [{ scale: interpolate(selected$.value, [0, 1], [0.9, 1]) }],
+    opacity: interpolate(selected$.value, [0, 1], [0.88, 1]),
+    transform: [{ scale: interpolate(selected$.value, [0, 1], [0.95, 1]) }],
   }));
 
   const handlePress = () => {
@@ -95,12 +79,11 @@ export const MoodOrb: React.FC<MoodOrbProps> = ({
       withTiming(1, { duration: 100 }),
       withSpring(0, { damping: 8, stiffness: 300 })
     );
-    runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Medium);
-    runOnJS(onSelect)(mood);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onSelect(mood);
   };
 
-  const colors = MOOD_COLORS[mood];
-  const glowColor = MOOD_GLOW[mood];
+  const { gradient: colors, glow: glowColor } = MOOD_CATALOG[mood];
 
   return (
     <Pressable onPress={handlePress} style={[styles.wrapper, style]}>
@@ -125,8 +108,6 @@ export const MoodOrb: React.FC<MoodOrbProps> = ({
         >
           <Text style={styles.emoji}>{emoji}</Text>
         </LinearGradient>
-        {/* Liquid highlight */}
-        <Animated.View style={styles.highlight} />
       </Animated.View>
       <Animated.Text style={[styles.label, labelStyle]}>{label}</Animated.Text>
     </Pressable>
@@ -152,21 +133,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  highlight: {
-    position: 'absolute',
-    top: 6,
-    left: 10,
-    width: 20,
-    height: 12,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.35)',
-  },
   emoji: {
     fontSize: 26,
   },
   label: {
     ...Typography.caption,
-    color: Colors.text.secondary,
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.text.primary,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.45)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
 });
