@@ -1,66 +1,98 @@
 # LuminaFlow
 
-A calm, glassmorphism-styled wellness app built with **Expo SDK 55**, **React Native**, and **React Navigation**. Mood check-ins, journaling, guided breathing, streaks, and daily affirmations—with **Zustand** + **AsyncStorage** for local persistence and **React Native Reanimated** for fluid motion.
+A calm, glassmorphism-styled wellness app built with **Expo SDK 55**, **React Native**, and **React Navigation**. Mood check-ins, journaling, guided breathing, streaks, and daily affirmations—with **Zustand** + **AsyncStorage** for on-device persistence and **React Native Reanimated** for fluid motion.
 
 <img width="390" height="896" alt="Simulator Screenshot - iPhone 16 Plus - 2026-04-15 at 23 28 32" src="https://github.com/user-attachments/assets/59a6ed96-39b1-461a-a049-db8002b10e21" />
 
+## Features
 
+| Area | What you get |
+|------|----------------|
+| **Home** | Time-based greeting, daily affirmation, mood picker, streak card, quick links to Breathe & Journal |
+| **Mood** | 7-day Reanimated bar chart, distribution pills, check-in log (virtualized list) |
+| **Journal** | Entry list, slide-up compose sheet, full-screen read overlay |
+| **Breathe** | Multiple patterns (e.g. 4-7-8, box), countdown + voice cues, session timer & orb |
+| **Profile** | Avatar & name, journey stats, dark mode, optional daily notification reminders |
+| **Onboarding** | Four intro slides; skipped on return visits |
+
+All user data stays **local** on the device (no backend). Profile includes **Clear all data** when you need a fresh start.
 
 ## Tech stack
 
-- **Expo** ~55 · **React** 19 · **React Native** 0.83  
-- **Navigation:** `@react-navigation/native`, native stack + bottom tabs  
-- **State:** Zustand, persisted with AsyncStorage  
-- **Motion / UI:** Reanimated, expo-blur, expo-linear-gradient, expo-haptics  
-- **Notifications:** expo-notifications (optional daily reminders)
+| Layer | Choices |
+|-------|---------|
+| Runtime | **Expo** ~55 · **React** 19 · **React Native** 0.83 |
+| Navigation | React Navigation 7 — native stack + bottom tabs |
+| State | **Zustand** slices, persisted via **AsyncStorage** (`lumina-flow-storage`) |
+| Styling | **NativeWind v4** (Tailwind) on screens; `@theme` tokens for charts/gradients; shared UI components still use `StyleSheet` where needed |
+| Motion | Reanimated 4 + Worklets, expo-blur, expo-linear-gradient, expo-haptics |
+| Voice | expo-speech (breathing countdown & phase cues) |
+| Notifications | expo-notifications (optional daily reminders on Profile) |
 
 ## Project structure
 
 ```
-App.tsx                          ← GestureHandler root + splash fade
+App.tsx                    Entry: global.css, splash, notification bootstrap
+global.css / tailwind.config.js
+docs/STYLING.md            NativeWind conventions & Reanimated notes
+
 src/
-├── theme/                       ← Colors, Typography, Spacing, Radius, Shadow
-├── store/useAppStore.ts         ← Zustand + AsyncStorage (mood, journal, streak, profile)
-├── components/
-│   ├── LiquidGlassCard.tsx      ← Frosted blur + shimmer + inner glow + liquid ripple
-│   ├── MoodOrb.tsx              ← Liquid drop entry + wiggle on select + glow ring
-│   ├── BreathingOrb.tsx         ← Animated orb with rotating ring + phase-driven scale
-│   ├── LiquidButton.tsx         ← Primary / ghost / danger variants with ripple press
-│   ├── StreakCounter.tsx        ← Liquid fill progress bar with flame pulse
-│   └── AnimatedBackground.tsx   ← Floating gradient orbs (per-screen configs)
+├── domain/                Mood catalog, breathing types, shared models
+├── data/                  Static content (e.g. breath patterns)
+├── store/
+│   ├── useAppStore.ts     Combined store + clearAllUserData()
+│   └── slices/            mood, journal, meditation, profile, settings, streak
+├── hooks/                 Breathing timer, tab-bar hide, haptics, color scheme
+├── utils/                 Dates, IDs, notifications, breathing speech
+├── theme/                 Colors, typography, spacing (programmatic styling)
+├── components/            Liquid glass UI, orbs, streak, backgrounds
 ├── screens/
-│   ├── onboarding/              ← 4 stagger-poured glass cards + paginated scroll
-│   ├── home/                    ← Ripple affirmation hero + mood picker + streak + breathe CTA
-│   ├── mood/                    ← 7-day animated bar chart (Reanimated) + entry log
-│   ├── journal/                 ← Entry list + slide-up compose modal + detail overlay
-│   ├── breathe/                 ← 4 patterns (4-7-8, Box, Relax, Energize) + real timer
-│   └── profile/                 ← Avatar picker + stats grid + settings toggles
-└── navigation/
-    ├── AppNavigator.tsx         ← Stack with fade transitions; skips onboarding if done
-    └── TabNavigator.tsx         ← Glass blur tab bar with spring-animated icons
+│   └── <screen>/
+│       ├── *Screen.tsx
+│       ├── *.tw.ts        Tailwind class groups (screens)
+│       └── *.static.ts    Plain styles for Reanimated / dynamic layout (when needed)
+└── navigation/            App stack, tab navigator, tab bar styles
 ```
 
-Root config also includes `app.json`, `babel.config.js` (Expo preset + Worklets for Reanimated 4), and `metro.config.js` (path aliases aligned with `tsconfig`).
+Path aliases (`@components`, `@screens`, `@store`, `@theme`, `@hooks`, `@utils`, `@navigation`, `@/…`) are set in `tsconfig.json` and Metro.
 
 ## Getting started
 
+**Requirements:** Node 18+, npm, and [Expo Go](https://expo.dev/go) or a local iOS/Android simulator.
+
 ```bash
+git clone https://github.com/violinapopova/lumina-flow.git
+cd lumina-flow
 npm install
 npx expo start
 ```
 
-Then open in **Expo Go** or run on a simulator (`i` / `a` in the CLI).
+Press **`i`** (iOS simulator) or **`a`** (Android emulator), or scan the QR code in Expo Go.
+
+After changing Tailwind or Babel config, clear the Metro cache:
+
+```bash
+npx expo start -c
+```
 
 ## Scripts
 
-| Command        | Description        |
-| -------------- | ------------------ |
+| Command | Description |
+|---------|-------------|
 | `npm run start` | Start Expo dev server |
-| `npm run ios`   | Start + open iOS      |
-| `npm run android` | Start + open Android |
-| `npm run web`   | Start web (needs `react-native-web` if not installed) |
-| `npm run lint`  | ESLint on `src/`      |
+| `npm run ios` | Start and open iOS |
+| `npm run android` | Start and open Android |
+| `npm run web` | Start web target |
+| `npm run lint` | ESLint on `src/` (requires ESLint config in repo) |
+
+## Styling
+
+Screen layout uses **NativeWind** `className` strings collected in per-screen `*.tw.ts` files. See **[docs/STYLING.md](docs/STYLING.md)** for setup, tokens, and why `Animated.*` views use `*.static.ts` instead of `className`.
+
+## Agent skills (optional)
+
+Callstack-style skills for RN performance, React Navigation, and upgrades live under `.agents/skills/` (installed via the [agent-skills](https://github.com/callstackincubator/agent-skills) tooling). Handy for refactors and upgrade checklists—not required to run the app.
 
 ## License
 
-Private / all rights reserved unless you add an explicit license file.
+Private / all rights reserved unless an explicit license file is added.
