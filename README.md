@@ -2,6 +2,8 @@
 
 A calm, glassmorphism-styled wellness app built with **Expo SDK 55**, **React Native**, and **React Navigation**. Mood check-ins, journaling, guided breathing, streaks, and daily affirmations—with **Zustand** + **AsyncStorage** for on-device persistence and **React Native Reanimated** for fluid motion.
 
+<img width="1920" height="1080" alt="Untitled design (3)" src="https://github.com/user-attachments/assets/6a43942c-1bb5-42e1-a8fe-b4cad5053e23" />
+
 ## Features
 
 | Area | What you get |
